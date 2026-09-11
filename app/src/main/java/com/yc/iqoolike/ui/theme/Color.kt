@@ -1,0 +1,33 @@
+package com.yc.iqoolike.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Light Color Tokens (from iqoo.txt)
+val LightPrimary = Color(0xFF0B6BCB)
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightPrimaryContainer = Color(0xFFD6E3FF)
+val LightSecondaryContainer = Color(0xFFDAE2F9)
+val LightSurface = Color(0xFFF8F9FF)
+val LightSurfaceContainer = Color(0xFFEDEEF5)
+val LightOnSurface = Color(0xFF191C20)
+val LightOnSurfaceVariant = Color(0xFF44474F)
+val LightOutlineVariant = Color(0xFFC4C6D0)
+val LightError = Color(0xFFBA1A1A)
+val LightErrorContainer = Color(0xFFFFDAD6)
+val LightSuccess = Color(0xFF146C2E)
+val LightWarning = Color(0xFF8A5300)
+
+// Dark Color Tokens (from iqoo.txt)
+val DarkPrimary = Color(0xFFA9C7FF)
+val DarkOnPrimary = Color(0xFF003062)
+val DarkPrimaryContainer = Color(0xFF00458E)
+val DarkSecondaryContainer = Color(0xFF3E4759)
+val DarkSurface = Color(0xFF111318)
+val DarkSurfaceContainer = Color(0xFF1D2024)
+val DarkOnSurface = Color(0xFFE2E2E9)
+val DarkOnSurfaceVariant = Color(0xFFC3C6CF)
+val DarkOutlineVariant = Color(0xFF44474F)
+val DarkError = Color(0xFFFFB4AB)
+val DarkErrorContainer = Color(0xFF93000A)
+val DarkSuccess = Color(0xFF7EDB9A)
+val DarkWarning = Color(0xFFFFB960)

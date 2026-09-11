@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">iQOO Token</string>
+    <string name="xposed_description">iQOO 社区 Token 与登录鉴权静默抓取模块</string>
+    <string name="tab_fetch">获取</string>
+    <string name="tab_history">历史</string>
+    <string name="tab_settings">设置</string>
+</resources>
