@@ -9,4 +9,8 @@ object Constants {
 
     const val LOGCAT_TOKEN_TAG = "IQOO_TOKEN"
     const val FILE_SNAPSHOT_NAME = "iqoo_token.json"
+
+    const val PREFS_NAME = "iqoo_settings"
+    const val KEY_BYPASS_SIGNATURE = "bypass_signature_check"
+    const val FLAG_BYPASS_DISABLED = "bypass_sign_disabled.flag"
 }

@@ -15,6 +15,7 @@ import java.io.File
 class TokenRepository(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences("iqoo_token_prefs", Context.MODE_PRIVATE)
+    private val settingsPrefs: SharedPreferences = context.getSharedPreferences(Constants.PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
 
     private val _latestToken = MutableStateFlow<TokenModel?>(null)
@@ -23,8 +24,37 @@ class TokenRepository(private val context: Context) {
     private val _historyList = MutableStateFlow<List<TokenModel>>(emptyList())
     val historyList: StateFlow<List<TokenModel>> = _historyList.asStateFlow()
 
+    private val _isBypassSignatureEnabled = MutableStateFlow(
+        settingsPrefs.getBoolean(Constants.KEY_BYPASS_SIGNATURE, true)
+    )
+    val isBypassSignatureEnabled: StateFlow<Boolean> = _isBypassSignatureEnabled.asStateFlow()
+
     init {
         loadFromCache()
+    }
+
+    /**
+     * 更新签名校验绕过开关（同步至 SharedPreferences 与标记文件）
+     */
+    fun setBypassSignatureEnabled(enabled: Boolean) {
+        _isBypassSignatureEnabled.value = enabled
+        settingsPrefs.edit().putBoolean(Constants.KEY_BYPASS_SIGNATURE, enabled).apply()
+
+        try {
+            val internalFlag = File(context.filesDir, Constants.FLAG_BYPASS_DISABLED)
+            val externalDir = context.getExternalFilesDir(null)
+            val externalFlag = if (externalDir != null) File(externalDir, Constants.FLAG_BYPASS_DISABLED) else null
+
+            if (enabled) {
+                if (internalFlag.exists()) internalFlag.delete()
+                externalFlag?.let { if (it.exists()) it.delete() }
+            } else {
+                if (!internalFlag.exists()) internalFlag.createNewFile()
+                externalFlag?.let { if (!it.exists()) it.createNewFile() }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     /**

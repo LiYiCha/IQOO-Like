@@ -35,6 +35,8 @@ class ModernHookEntry : XposedModule() {
         // 2. 目标 iQOO 社区进程
         if (packageName == Constants.TARGET_APP_PKG) {
             Log.i(TAG, "✓ 现代 libxposed: 正在挂钩目标包: $packageName")
+            // ★★★ 第 1 顺位：首先执行系统签名校验绕过与防崩挂钩（在组件初始化最早期生效）★★★
+            SignatureBypassHook.applyModern(this, classLoader)
             initModernHooks(classLoader)
         }
     }

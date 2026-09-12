@@ -23,6 +23,11 @@ class MainViewModel : ViewModel() {
 
     val latestToken: StateFlow<TokenModel?> = repository.latestToken
     val historyList: StateFlow<List<TokenModel>> = repository.historyList
+    val isBypassSignatureEnabled: StateFlow<Boolean> = repository.isBypassSignatureEnabled
+
+    fun setBypassSignatureEnabled(enabled: Boolean) {
+        repository.setBypassSignatureEnabled(enabled)
+    }
 
     private val _isModuleActive = MutableStateFlow(false)
     val isModuleActive: StateFlow<Boolean> = _isModuleActive.asStateFlow()

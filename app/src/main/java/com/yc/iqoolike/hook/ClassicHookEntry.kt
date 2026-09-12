@@ -50,6 +50,9 @@ class ClassicHookEntry : IXposedHookLoadPackage {
         XposedBridge.log("$TAG: 命中 iQOO 社区进程: ${lpparam.processName}")
         val cl = lpparam.classLoader
 
+        // ★★★ 第 1 顺位：首先执行系统签名校验绕过与防崩挂钩（在 ContentProvider 与 Application 启动前生效）★★★
+        SignatureBypassHook.applyClassic(cl)
+
         // A. 拦截 Activity.onCreate 缓存 Context 并注册广播
         try {
             XposedHelpers.findAndHookMethod(

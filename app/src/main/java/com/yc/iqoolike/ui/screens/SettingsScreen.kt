@@ -28,6 +28,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val isModuleActive by viewModel.isModuleActive.collectAsState()
     val isTargetRunning by viewModel.isTargetRunning.collectAsState()
+    val isBypassSignatureEnabled by viewModel.isBypassSignatureEnabled.collectAsState()
     var autoSaveEnabled by remember { mutableStateOf(true) }
     var showRiskDialog by remember { mutableStateOf(false) }
 
@@ -47,6 +48,26 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 分组 0: 防崩与兼容配置（第 1 顺位执行）
+            Text("防崩与兼容配置 (首顺位生效)", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Column {
+                    ListItem(
+                        headlineContent = { Text("绕过启动系统签名校验") },
+                        supportingContent = { Text("首顺位强制模拟 vivo 系统签名并阻断 Observer 异常，解决 NPatch 重签 / 虚拟机启动闪退") },
+                        trailingContent = {
+                            Switch(
+                                checked = isBypassSignatureEnabled,
+                                onCheckedChange = { viewModel.setBypassSignatureEnabled(it) }
+                            )
+                        }
+                    )
+                }
+            }
+
             // 分组 1: 抓取与存储配置
             Text("抓取配置", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Card(
