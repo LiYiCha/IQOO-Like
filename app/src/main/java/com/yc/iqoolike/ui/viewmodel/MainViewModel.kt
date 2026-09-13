@@ -63,6 +63,16 @@ class MainViewModel : ViewModel() {
     }
 
     /**
+     * 收到宿主进程回传的心跳 PONG
+     */
+    fun onPongReceived(pid: Int) {
+        _isModuleActive.value = true
+        _isTargetRunning.value = true
+        _statusMessage.value = "✓ 模块已在宿主中就绪 (PID: $pid)"
+        Log.i(TAG, "收到宿主回传 PONG 心跳，已标记宿主存活且模块激活 (PID: $pid)")
+    }
+
+    /**
      * 刷新环境状态（目标 App 安装与进程存活状态）
      */
     fun refreshEnvironmentStatus(context: Context) {
@@ -74,12 +84,14 @@ class MainViewModel : ViewModel() {
             _isTargetInstalled.value = false
         }
 
+        // 发送 PING 广播主动探测宿主进程与 Hook 激活状态（完美绕过 Android 14 getRunningAppProcesses 跨进程权限盲区）
         try {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            val runningProcesses = am.runningAppProcesses
-            _isTargetRunning.value = runningProcesses?.any { it.processName.contains(TARGET_PKG) } == true
+            val pingIntent = Intent(com.yc.iqoolike.data.Constants.ACTION_PING).apply {
+                setPackage(TARGET_PKG)
+            }
+            context.sendBroadcast(pingIntent)
         } catch (e: Exception) {
-            _isTargetRunning.value = false
+            // Ignore
         }
     }
 

@@ -138,7 +138,10 @@ class ClassicHookEntry : IXposedHookLoadPackage {
             if (isReceiverRegistered) return
             try {
                 val receiver = HookReceiver(classLoader)
-                val filter = IntentFilter(Constants.ACTION_PULL)
+                val filter = IntentFilter().apply {
+                    addAction(Constants.ACTION_PULL)
+                    addAction(Constants.ACTION_PING)
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     context.applicationContext.registerReceiver(
                         receiver,
@@ -149,7 +152,9 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                     context.applicationContext.registerReceiver(receiver, filter)
                 }
                 isReceiverRegistered = true
-                Log.i(TAG, "✓ 动态注册主动触发接收器成功 (ACTION_PULL)")
+                Log.i(TAG, "✓ 动态注册主动触发与心跳接收器成功")
+                // 立即主动向伴侣 App 上报一次存活与激活心跳
+                HookReceiver.sendPongBroadcast(context.applicationContext)
             } catch (t: Throwable) {
                 Log.e(TAG, "动态注册广播接收器异常", t)
             }

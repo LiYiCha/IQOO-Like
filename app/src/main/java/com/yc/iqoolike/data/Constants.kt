@@ -6,6 +6,8 @@ object Constants {
 
     const val ACTION_PULL = "iqoobbs.action.PULL"
     const val ACTION_RESULT = "iqoobbs.action.RESULT"
+    const val ACTION_PING = "iqoobbs.action.PING"
+    const val ACTION_PONG = "iqoobbs.action.PONG"
 
     const val LOGCAT_TOKEN_TAG = "IQOO_TOKEN"
     const val FILE_SNAPSHOT_NAME = "iqoo_token.json"

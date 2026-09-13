@@ -27,11 +27,17 @@ class MainActivity : ComponentActivity() {
 
     private val resultReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == HookInterceptors.ACTION_RESULT) {
-                val json = intent.getStringExtra("json")
-                val sig = intent.getStringExtra("sig")
-                val nonce = intent.getStringExtra("nonce")
-                viewModel.onResultReceived(json, sig, nonce)
+            when (intent?.action) {
+                HookInterceptors.ACTION_RESULT -> {
+                    val json = intent.getStringExtra("json")
+                    val sig = intent.getStringExtra("sig")
+                    val nonce = intent.getStringExtra("nonce")
+                    viewModel.onResultReceived(json, sig, nonce)
+                }
+                com.yc.iqoolike.data.Constants.ACTION_PONG -> {
+                    val pid = intent.getIntExtra("pid", 0)
+                    viewModel.onPongReceived(pid)
+                }
             }
         }
     }
@@ -39,8 +45,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 注册回传结果接收器
-        val filter = IntentFilter(HookInterceptors.ACTION_RESULT)
+        // 注册回传结果与心跳探测接收器
+        val filter = IntentFilter().apply {
+            addAction(HookInterceptors.ACTION_RESULT)
+            addAction(com.yc.iqoolike.data.Constants.ACTION_PONG)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(resultReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
