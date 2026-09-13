@@ -1,4 +1,4 @@
-﻿package com.yc.iqoolike.hook
+package com.yc.iqoolike.hook
 
 import android.content.Context
 import android.util.Log
@@ -124,12 +124,63 @@ object SignatureBypassHook {
                 Int::class.javaPrimitiveType,
                 XC_MethodReplacement.returnConstant(0)
             )
-            XposedBridge.log("$TAG: ✓ [5/5] ApplicationPackageManager.checkSignatures(uid, uid) -> 强制返回 0 (MATCH)")
+            XposedBridge.log("$TAG: ✓ [5/8] ApplicationPackageManager.checkSignatures(uid, uid) -> 强制返回 0 (MATCH)")
         } catch (t: Throwable) {
-            XposedBridge.log("$TAG: ⚠️ [5/5] Hook checkSignatures 失败: ${t.message}")
+            XposedBridge.log("$TAG: ⚠️ [5/8] Hook checkSignatures 失败: ${t.message}")
         }
 
-        XposedBridge.log("$TAG: === [第 1 顺位] 系统签名校验与防崩全部挂钩就绪 ===")
+        // 防御 6: 彻底切断 vivo 账号跳转劫持 (ToVivoAccountPresenter.toVivoAccount -> 恒返回 false)
+        try {
+            XposedHelpers.findAndHookMethod(
+                "com.bbk.account.base.presenter.ToVivoAccountPresenter",
+                classLoader,
+                "toVivoAccount",
+                android.app.Activity::class.java,
+                Boolean::class.javaPrimitiveType,
+                XC_MethodReplacement.returnConstant(false)
+            )
+            XposedBridge.log("$TAG: ✓ [6/8] ToVivoAccountPresenter.toVivoAccount -> 强制返回 false (阻断 vivo 账号跳转劫持)")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: ⚠️ [6/8] Hook ToVivoAccountPresenter.toVivoAccount 失败: ${t.message}")
+        }
+
+        // 防御 7: 阻断账号 SDK 发起的 ACCOUNT_MAIN_LAUNCHER 跳转 (AccountInfoSysAppImpl.login / accountLogin -> DO_NOTHING)
+        try {
+            XposedHelpers.findAndHookMethod(
+                "com.bbk.account.base.presenter.AccountInfoSysAppImpl",
+                classLoader,
+                "login",
+                String::class.java,
+                String::class.java,
+                String::class.java,
+                android.app.Activity::class.java,
+                XC_MethodReplacement.DO_NOTHING
+            )
+            XposedBridge.log("$TAG: ✓ [7/8] AccountInfoSysAppImpl.login -> 拦截置空 (防止发起 ACCOUNT_MAIN_LAUNCHER)")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: ⚠️ [7/8] Hook AccountInfoSysAppImpl.login 失败: ${t.message}")
+        }
+
+        // 防御 8: 登录态判定伪装 (ba.r.e & AccountInfoSysAppImpl.isLogin -> 恒返回 true)
+        try {
+            XposedHelpers.findAndHookMethod(
+                "ba.r",
+                classLoader,
+                "e",
+                XC_MethodReplacement.returnConstant(true)
+            )
+            XposedHelpers.findAndHookMethod(
+                "com.bbk.account.base.presenter.AccountInfoSysAppImpl",
+                classLoader,
+                "isLogin",
+                XC_MethodReplacement.returnConstant(true)
+            )
+            XposedBridge.log("$TAG: ✓ [8/8] ba.r.e & AccountInfoSysAppImpl.isLogin -> 强制返回 true (维持宿主已登录态)")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: ⚠️ [8/8] Hook isLogin 伪装失败: ${t.message}")
+        }
+
+        XposedBridge.log("$TAG: === [第 1 顺位] 系统签名校验、防崩与防跳转全部挂钩就绪 ===")
     }
 
     /**
@@ -148,9 +199,9 @@ object SignatureBypassHook {
             val utilsClass = Class.forName("com.bbk.account.base.utils.AccountUtils", false, classLoader)
             val method = utilsClass.getDeclaredMethod("isSystemSign", Context::class.java, String::class.java)
             module.hook(method).intercept(Hooker { true })
-            Log.i(TAG, "✓ [1/5] 现代 libxposed: AccountUtils.isSystemSign -> 强制返回 true")
+            Log.i(TAG, "✓ [1/8] 现代 libxposed: AccountUtils.isSystemSign -> 强制返回 true")
         } catch (t: Throwable) {
-            Log.w(TAG, "⚠️ [1/5] 现代 Hook isSystemSign 失败: ${t.message}")
+            Log.w(TAG, "⚠️ [1/8] 现代 Hook isSystemSign 失败: ${t.message}")
         }
 
         // 防御 2: AccountAppPackageInfo.appIsSystemApp
@@ -158,9 +209,9 @@ object SignatureBypassHook {
             val pkgInfoClass = Class.forName("com.bbk.account.base.data.AccountAppPackageInfo", false, classLoader)
             val method = pkgInfoClass.getDeclaredMethod("appIsSystemApp")
             module.hook(method).intercept(Hooker { true })
-            Log.i(TAG, "✓ [2/5] 现代 libxposed: AccountAppPackageInfo.appIsSystemApp -> 强制返回 true")
+            Log.i(TAG, "✓ [2/8] 现代 libxposed: AccountAppPackageInfo.appIsSystemApp -> 强制返回 true")
         } catch (t: Throwable) {
-            Log.w(TAG, "⚠️ [2/5] 现代 Hook appIsSystemApp 失败: ${t.message}")
+            Log.w(TAG, "⚠️ [2/8] 现代 Hook appIsSystemApp 失败: ${t.message}")
         }
 
         // 防御 3: AccountProviderLoginPresenter.registerDbListener
@@ -168,9 +219,9 @@ object SignatureBypassHook {
             val presenterClass = Class.forName("com.bbk.account.base.presenter.AccountProviderLoginPresenter", false, classLoader)
             val method = presenterClass.getDeclaredMethod("registerDbListener")
             module.hook(method).intercept(Hooker { null })
-            Log.i(TAG, "✓ [3/5] 现代 libxposed: AccountProviderLoginPresenter.registerDbListener -> 拦截置空")
+            Log.i(TAG, "✓ [3/8] 现代 libxposed: AccountProviderLoginPresenter.registerDbListener -> 拦截置空")
         } catch (t: Throwable) {
-            Log.w(TAG, "⚠️ [3/5] 现代 Hook registerDbListener 失败: ${t.message}")
+            Log.w(TAG, "⚠️ [3/8] 现代 Hook registerDbListener 失败: ${t.message}")
         }
 
         // 防御 4: AccountUtils.isVivoPhone
@@ -178,11 +229,41 @@ object SignatureBypassHook {
             val utilsClass = Class.forName("com.bbk.account.base.utils.AccountUtils", false, classLoader)
             val method = utilsClass.getDeclaredMethod("isVivoPhone")
             module.hook(method).intercept(Hooker { true })
-            Log.i(TAG, "✓ [4/5] 现代 libxposed: AccountUtils.isVivoPhone -> 强制返回 true")
+            Log.i(TAG, "✓ [4/8] 现代 libxposed: AccountUtils.isVivoPhone -> 强制返回 true")
         } catch (t: Throwable) {
-            Log.w(TAG, "⚠️ [4/5] 现代 Hook isVivoPhone 失败: ${t.message}")
+            Log.w(TAG, "⚠️ [4/8] 现代 Hook isVivoPhone 失败: ${t.message}")
         }
 
-        Log.i(TAG, "=== [第 1 顺位] 现代 libxposed: 系统签名校验与防崩全部挂钩就绪 ===")
+        // 防御 6: 阻断 ToVivoAccountPresenter.toVivoAccount
+        try {
+            val toVivoClass = Class.forName("com.bbk.account.base.presenter.ToVivoAccountPresenter", false, classLoader)
+            val method = toVivoClass.getDeclaredMethod("toVivoAccount", android.app.Activity::class.java, Boolean::class.javaPrimitiveType)
+            module.hook(method).intercept(Hooker { false })
+            Log.i(TAG, "✓ [6/8] 现代 libxposed: ToVivoAccountPresenter.toVivoAccount -> 强制返回 false")
+        } catch (t: Throwable) {
+            Log.w(TAG, "⚠️ [6/8] 现代 Hook toVivoAccount 失败: ${t.message}")
+        }
+
+        // 防御 7: 阻断 AccountInfoSysAppImpl.login
+        try {
+            val implClass = Class.forName("com.bbk.account.base.presenter.AccountInfoSysAppImpl", false, classLoader)
+            val method = implClass.getDeclaredMethod("login", String::class.java, String::class.java, String::class.java, android.app.Activity::class.java)
+            module.hook(method).intercept(Hooker { null })
+            Log.i(TAG, "✓ [7/8] 现代 libxposed: AccountInfoSysAppImpl.login -> 拦截置空")
+        } catch (t: Throwable) {
+            Log.w(TAG, "⚠️ [7/8] 现代 Hook login 失败: ${t.message}")
+        }
+
+        // 防御 8: ba.r.e 登录态判定伪装
+        try {
+            val rClass = Class.forName("ba.r", false, classLoader)
+            val method = rClass.getDeclaredMethod("e")
+            module.hook(method).intercept(Hooker { true })
+            Log.i(TAG, "✓ [8/8] 现代 libxposed: ba.r.e -> 强制返回 true")
+        } catch (t: Throwable) {
+            Log.w(TAG, "⚠️ [8/8] 现代 Hook ba.r.e 失败: ${t.message}")
+        }
+
+        Log.i(TAG, "=== [第 1 顺位] 现代 libxposed: 系统签名校验、防崩与防跳转全部挂钩就绪 ===")
     }
 }

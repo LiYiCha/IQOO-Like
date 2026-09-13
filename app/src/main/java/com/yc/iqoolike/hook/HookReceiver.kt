@@ -6,12 +6,11 @@ import android.content.Intent
 import android.util.Log
 import com.yc.iqoolike.data.Constants
 import com.yc.iqoolike.data.TokenModel
-import com.yc.iqoolike.data.TokenRepository
 import java.io.File
 
 /**
  * 运行在宿主 com.iqoo.bbs 进程内的广播接收器
- * 接收来自伴侣 App 的主动拉取指令
+ * 接收来自伴侣 App 的主动拉取指令与心跳探测
  */
 class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
 
@@ -29,7 +28,7 @@ class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
                 val nonce = intent.getStringExtra("nonce") ?: ""
                 Log.i(TAG, "收到模块主动拉取触发请求, nonce=$nonce")
 
-                // 1. 如果已有现成快照，先快速回传一份（让 UI 立即有显示）
+                // 1. 尝试从内部快照文件回传
                 try {
                     val snapshotFile = File(context.filesDir, Constants.FILE_SNAPSHOT_NAME)
                     if (snapshotFile.exists()) {
@@ -43,8 +42,8 @@ class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
                     // Ignore
                 }
 
-                // 2. 触发系统底层静默换票网络请求
-                TokenTrigger.trigger(classLoader)
+                // 2. 触发系统底层静默换票 (会自动尝试读取 SpUserSettings)
+                TokenTrigger.trigger(classLoader, context)
             }
         }
     }
@@ -59,9 +58,10 @@ class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
                     putExtra("isModuleActive", true)
                     putExtra("isTargetRunning", true)
                     putExtra("pid", android.os.Process.myPid())
+                    addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
                 }
                 context.sendBroadcast(pongIntent)
-                Log.i(TAG, "已向伴侣 App 回传心跳 PONG (PID: ${android.os.Process.myPid()})")
+                Log.i(TAG, "✓ 已向伴侣 App 回传心跳 PONG (PID: ${android.os.Process.myPid()})")
             } catch (t: Throwable) {
                 Log.e(TAG, "发送 PONG 广播异常", t)
             }

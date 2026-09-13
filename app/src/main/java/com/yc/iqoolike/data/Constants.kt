@@ -15,4 +15,7 @@ object Constants {
     const val PREFS_NAME = "iqoo_settings"
     const val KEY_BYPASS_SIGNATURE = "bypass_signature_check"
     const val FLAG_BYPASS_DISABLED = "bypass_sign_disabled.flag"
+    const val KEY_MODULE_ACTIVE = "key_module_active"
+    const val KEY_LAST_HEARTBEAT = "key_last_heartbeat"
+    const val KEY_TARGET_PID = "key_target_pid"
 }

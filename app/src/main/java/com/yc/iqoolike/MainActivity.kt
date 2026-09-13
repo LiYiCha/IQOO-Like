@@ -65,7 +65,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.setModuleActive(isModuleActive() || viewModel.isModuleActiveNative())
+        if (isModuleActive() || viewModel.isModuleActiveNative()) {
+            viewModel.setModuleActive(true)
+        }
         viewModel.refreshEnvironmentStatus(this)
     }
 

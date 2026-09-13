@@ -3,13 +3,13 @@ package com.yc.iqoolike.hook
 import android.app.Activity
 import android.content.Context
 import android.util.Log
+import com.yc.iqoolike.data.TokenModel
 import java.lang.ref.WeakReference
-import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
 /**
  * 主动静默换票触发器
- * 反射调用 iQOO 社区内部账号换票入口
+ * 反射调用 iQOO 社区内部账号换票入口 (纯静默通道，绝不触发 UI 界面跳转)
  */
 object TokenTrigger {
 
@@ -22,7 +22,6 @@ object TokenTrigger {
      */
     private fun getTargetInstance(clazz: Class<*>): Any? {
         return try {
-            // 尝试找静态单例字段 (如 INSTANCE, sInstance, etc.)
             val singletonField = clazz.declaredFields.firstOrNull {
                 Modifier.isStatic(it.modifiers) && it.type == clazz
             }
@@ -40,64 +39,106 @@ object TokenTrigger {
     }
 
     /**
-     * 主动触发换票
+     * 直接从宿主 SpUserSettings 提取已存 Token
      */
-    fun trigger(classLoader: ClassLoader): Boolean {
+    fun extractCachedSnapshot(classLoader: ClassLoader, context: Context?): TokenModel? {
+        return try {
+            val spCClass = Class.forName("com.leaf.data_safe_save.sp.c", false, classLoader)
+            val hMethod = spCClass.getDeclaredMethod("h")
+            val spUserSettings = hMethod.invoke(null) ?: return null
+
+            val mMethod = spUserSettings.javaClass.getDeclaredMethod("m")
+            val tokenInfo = mMethod.invoke(spUserSettings) ?: return null
+
+            val getAccessToken = tokenInfo.javaClass.getDeclaredMethod("getAccessToken")
+            val accessToken = getAccessToken.invoke(tokenInfo) as? String ?: ""
+            if (accessToken.isEmpty()) return null
+
+            val getUserId = tokenInfo.javaClass.getDeclaredMethod("getUserId")
+            val userId = (getUserId.invoke(tokenInfo) as? Number)?.toLong() ?: 0L
+
+            val getExpiresIn = tokenInfo.javaClass.getDeclaredMethod("getExpiresIn")
+            val expiresIn = (getExpiresIn.invoke(tokenInfo) as? Number)?.toLong() ?: 2592000L
+
+            var openid = ""
+            try {
+                val f9055dField = spUserSettings.javaClass.getDeclaredField("f9055d")
+                f9055dField.isAccessible = true
+                openid = f9055dField.get(null) as? String ?: ""
+            } catch (e: Throwable) {
+                // Ignore
+            }
+            if (openid.isEmpty()) {
+                try {
+                    val iMethod = spUserSettings.javaClass.getMethod("i", String::class.java)
+                    openid = iMethod.invoke(spUserSettings, "key_openid") as? String ?: ""
+                } catch (e: Throwable) {
+                    // Ignore
+                }
+            }
+
+            TokenModel(
+                accessToken = accessToken,
+                userId = userId,
+                expiresIn = expiresIn,
+                vivotoken = "",
+                openid = openid,
+                nickname = "",
+                mobile = "",
+                versionCode = 0,
+                xVisitor = "",
+                timestamp = System.currentTimeMillis() / 1000,
+                source = "宿主本地缓存"
+            )
+        } catch (t: Throwable) {
+            Log.d(TAG, "读取宿主内部已存 Token 异常: ${t.message}")
+            null
+        }
+    }
+
+    /**
+     * 主动触发换票 (纯静默双通道)
+     */
+    fun trigger(classLoader: ClassLoader, context: Context? = null): Boolean {
         try {
             Log.d(TAG, "开始执行主动静默换票流程...")
+
+            // 1. 如果宿主本地已有有效 Token 快照，立即秒级回传
+            val safeCtx = context ?: cachedContext?.get() ?: cachedActivity?.get()
+            val cachedToken = extractCachedSnapshot(classLoader, safeCtx)
+            if (cachedToken != null && safeCtx != null) {
+                Log.i(TAG, "✓ 发现宿主本地已存有效 Token，立即秒级回传！")
+                HookInterceptors.sendResultBroadcast(safeCtx, cachedToken)
+            }
+
+            // 2. 静默触发底层网络换票流程
             val baMClass = Class.forName("ba.m", false, classLoader)
             val instance = getTargetInstance(baMClass)
 
-            val activity = cachedActivity?.get()
-            if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
-                // 方案 A: 拥有前台 Activity 实例，调用 ba.m.f(Activity, Callback)
-                val methodF = baMClass.declaredMethods.firstOrNull {
-                    it.name == "f" && it.parameterTypes.isNotEmpty() && Activity::class.java.isAssignableFrom(it.parameterTypes[0])
-                }
-                if (methodF != null) {
-                    methodF.isAccessible = true
-                    Log.d(TAG, "命中 ba.m.f(${methodF.parameterTypes.map { it.simpleName }.joinToString()})")
-                    val args = arrayOfNulls<Any>(methodF.parameterTypes.size)
-                    args[0] = activity
-                    val target = if (Modifier.isStatic(methodF.modifiers)) null else instance
-                    methodF.invoke(target, *args)
-                    Log.i(TAG, "✓ 成功调用 ba.m.f 触发静默换票")
-                    return true
-                }
+            // 优先通道 1: 调用零参静默入口 ba.m.c()
+            val methodC = baMClass.declaredMethods.firstOrNull { it.name == "c" && it.parameterTypes.isEmpty() }
+            if (methodC != null) {
+                methodC.isAccessible = true
+                val target = if (Modifier.isStatic(methodC.modifiers)) null else instance
+                methodC.invoke(target)
+                Log.i(TAG, "✓ 成功调用 ba.m.c() 触发静默换票")
+                return true
             }
 
-            // 方案 B: 尝试调用 ba.m.b()
-            val methodB = baMClass.declaredMethods.firstOrNull { it.name == "b" && it.parameterTypes.isEmpty() }
+            // 优先通道 2: 调用静默自动登录 ba.m.b(null)
+            val methodB = baMClass.declaredMethods.firstOrNull { it.name == "b" && it.parameterTypes.size == 1 }
             if (methodB != null) {
                 methodB.isAccessible = true
                 val target = if (Modifier.isStatic(methodB.modifiers)) null else instance
-                methodB.invoke(target)
-                Log.i(TAG, "✓ 成功调用 ba.m.b() 触发换票")
+                methodB.invoke(target, null)
+                Log.i(TAG, "✓ 成功调用 ba.m.b(null) 触发自动登录换票")
                 return true
             }
 
-            // 方案 C: 扫描 ba.m 内其它候选方法
-            val candidateMethod = baMClass.declaredMethods.firstOrNull { m ->
-                m.parameterTypes.isEmpty() ||
-                        (m.parameterTypes.size == 1 && Context::class.java.isAssignableFrom(m.parameterTypes[0]))
-            }
-            if (candidateMethod != null) {
-                candidateMethod.isAccessible = true
-                val target = if (Modifier.isStatic(candidateMethod.modifiers)) null else instance
-                val ctx = cachedContext?.get() ?: cachedActivity?.get()
-                if (candidateMethod.parameterTypes.isEmpty()) {
-                    candidateMethod.invoke(target)
-                } else if (ctx != null) {
-                    candidateMethod.invoke(target, ctx)
-                }
-                Log.i(TAG, "✓ 成功调用候选方法 ba.m.${candidateMethod.name}")
-                return true
-            }
-
-            Log.w(TAG, "未找到适用的 ba.m 换票入口方法")
+            Log.w(TAG, "未找到适用的静默换票入口")
             return false
         } catch (t: Throwable) {
-            Log.e(TAG, "主动触发换票异常", t)
+            Log.e(TAG, "主动静默换票异常", t)
             return false
         }
     }

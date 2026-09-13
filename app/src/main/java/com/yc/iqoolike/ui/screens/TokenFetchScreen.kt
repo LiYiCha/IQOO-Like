@@ -50,6 +50,7 @@ fun TokenFetchScreen(
     val isTargetRunning by viewModel.isTargetRunning.collectAsState()
     val isTargetInstalled by viewModel.isTargetInstalled.collectAsState()
     val statusMessage by viewModel.statusMessage.collectAsState()
+    val targetPid by viewModel.targetPid.collectAsState()
 
     var showMenu by remember { mutableStateOf(false) }
 
@@ -146,7 +147,7 @@ fun TokenFetchScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 StatusChip(
-                    label = if (isModuleActive) "LSPosed 已激活" else "未激活 / 未生效",
+                    label = if (isModuleActive) "模块已激活" else "未激活 / 待连接",
                     isSuccess = isModuleActive
                 )
                 StatusChip(
@@ -154,7 +155,7 @@ fun TokenFetchScreen(
                     isSuccess = isTargetInstalled
                 )
                 StatusChip(
-                    label = if (isTargetRunning) "目标进程运行中" else "目标未运行(点击拉起)",
+                    label = if (isTargetRunning) "目标进程运行中" + (if (targetPid > 0) " (PID: $targetPid)" else "") else "目标未运行(点击拉起)",
                     isSuccess = isTargetRunning,
                     onClick = { viewModel.launchTargetApp(context) }
                 )
@@ -169,12 +170,13 @@ fun TokenFetchScreen(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "⚠ 模块未在 LSPosed / Xposed 中生效",
+                            text = "⚠ 模块尚未收到生效信号",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "请在框架管理中勾选本模块，并将作用域添加到「iQOO 社区」，随后重启应用或软重启系统。",
+                            text = "• NPatch 免 Root 环境：请使用 NPatch 修补「iQOO 社区」并嵌入本模块；启动一次 iQOO 社区后，本模块将自动接收心跳并点亮激活状态。\n• LSPosed / Root 环境：请在框架管理器中启用本模块，勾选「iQOO 社区」作用域并重启。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )

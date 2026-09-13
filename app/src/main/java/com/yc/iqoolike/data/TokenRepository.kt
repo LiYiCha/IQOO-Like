@@ -29,8 +29,46 @@ class TokenRepository(private val context: Context) {
     )
     val isBypassSignatureEnabled: StateFlow<Boolean> = _isBypassSignatureEnabled.asStateFlow()
 
+    private val _isModuleActive = MutableStateFlow(
+        settingsPrefs.getBoolean(Constants.KEY_MODULE_ACTIVE, false)
+    )
+    val isModuleActive: StateFlow<Boolean> = _isModuleActive.asStateFlow()
+
+    private val _targetPid = MutableStateFlow(
+        settingsPrefs.getInt(Constants.KEY_TARGET_PID, 0)
+    )
+    val targetPid: StateFlow<Int> = _targetPid.asStateFlow()
+
+    private val _lastHeartbeat = MutableStateFlow(
+        settingsPrefs.getLong(Constants.KEY_LAST_HEARTBEAT, 0L)
+    )
+    val lastHeartbeat: StateFlow<Long> = _lastHeartbeat.asStateFlow()
+
     init {
         loadFromCache()
+    }
+
+    /**
+     * 设置模块激活状态并持久化
+     */
+    fun setModuleActive(active: Boolean) {
+        _isModuleActive.value = active
+        settingsPrefs.edit().putBoolean(Constants.KEY_MODULE_ACTIVE, active).apply()
+    }
+
+    /**
+     * 更新心跳数据 (PID 与当前时间戳)
+     */
+    fun updateHeartbeat(pid: Int) {
+        val now = System.currentTimeMillis()
+        _isModuleActive.value = true
+        _targetPid.value = pid
+        _lastHeartbeat.value = now
+        settingsPrefs.edit()
+            .putBoolean(Constants.KEY_MODULE_ACTIVE, true)
+            .putInt(Constants.KEY_TARGET_PID, pid)
+            .putLong(Constants.KEY_LAST_HEARTBEAT, now)
+            .apply()
     }
 
     /**

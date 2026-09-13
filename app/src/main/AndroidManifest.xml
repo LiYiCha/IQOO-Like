@@ -46,6 +46,16 @@
             </intent-filter>
         </activity>
 
+        <!-- 静态广播接收器：持久化接收宿主 PONG 心跳与 Token 凭据 -->
+        <receiver
+            android:name=".receiver.CompanionStatusReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="iqoobbs.action.PONG" />
+                <action android:name="iqoobbs.action.RESULT" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

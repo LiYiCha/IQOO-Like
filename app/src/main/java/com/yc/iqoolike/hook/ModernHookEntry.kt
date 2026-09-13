@@ -43,6 +43,25 @@ class ModernHookEntry : XposedModule() {
 
     private fun initModernHooks(classLoader: ClassLoader) {
         try {
+            // A0. 拦截 Application.onCreate 提前上报存活并注册广播
+            try {
+                val appClass = Class.forName("android.app.Application", false, classLoader)
+                val onCreateMethod = appClass.getDeclaredMethod("onCreate")
+                hook(onCreateMethod).intercept(Hooker { chain ->
+                    val result = chain.proceed()
+                    val app = chain.thisObject as? android.app.Application
+                    if (app != null) {
+                        TokenTrigger.cachedContext = WeakReference(app.applicationContext)
+                        ClassicHookEntry.registerReceiverIfNeeded(app, classLoader)
+                        HookReceiver.sendPongBroadcast(app.applicationContext)
+                    }
+                    result
+                })
+                Log.i(TAG, "✓ 现代 libxposed: Application.onCreate 挂钩就绪")
+            } catch (t: Throwable) {
+                Log.w(TAG, "现代 Hook Application.onCreate 异常: ${t.message}")
+            }
+
             // A. 精准挂钩 Activity.onCreate 缓存上下文并注册主动触发接收器
             val activityClass = Class.forName("android.app.Activity", false, classLoader)
             val onCreateMethod = activityClass.getDeclaredMethod("onCreate", Bundle::class.java)
@@ -53,6 +72,7 @@ class ModernHookEntry : XposedModule() {
                     TokenTrigger.cachedActivity = WeakReference(activity)
                     TokenTrigger.cachedContext = WeakReference(activity.applicationContext)
                     ClassicHookEntry.registerReceiverIfNeeded(activity, classLoader)
+                    HookReceiver.sendPongBroadcast(activity.applicationContext)
                 }
                 result
             })

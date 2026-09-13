@@ -53,6 +53,26 @@ class ClassicHookEntry : IXposedHookLoadPackage {
         // ★★★ 第 1 顺位：首先执行系统签名校验绕过与防崩挂钩（在 ContentProvider 与 Application 启动前生效）★★★
         SignatureBypassHook.applyClassic(cl)
 
+        // A0. 拦截 Application.onCreate 最早期初始化上下文并广播存活心跳
+        try {
+            XposedHelpers.findAndHookMethod(
+                "android.app.Application",
+                cl,
+                "onCreate",
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val app = param.thisObject as? android.app.Application ?: return
+                        TokenTrigger.cachedContext = WeakReference(app.applicationContext)
+                        registerReceiverIfNeeded(app, cl)
+                        HookReceiver.sendPongBroadcast(app.applicationContext)
+                        XposedBridge.log("$TAG: ✓ Application.onCreate 启动就绪，已发送激活存活心跳")
+                    }
+                }
+            )
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: Hook Application.onCreate 失败: ${t.message}")
+        }
+
         // A. 拦截 Activity.onCreate 缓存 Context 并注册广播
         try {
             XposedHelpers.findAndHookMethod(
@@ -66,11 +86,47 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                         TokenTrigger.cachedActivity = WeakReference(activity)
                         TokenTrigger.cachedContext = WeakReference(activity.applicationContext)
                         registerReceiverIfNeeded(activity, cl)
+                        HookReceiver.sendPongBroadcast(activity.applicationContext)
                     }
                 }
             )
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: Hook Activity.onCreate 失败: ${t.message}")
+        }
+
+        // B0. 精准请求入口: ba.m.a(ContextWrapper, AccountInfo, e, f)
+        try {
+            val accountInfoClass = XposedHelpers.findClass("com.leaf.account.AccountInfo", cl)
+            val eClass = XposedHelpers.findClass("ba.e", cl)
+            val fClass = XposedHelpers.findClass("ba.f", cl)
+            XposedHelpers.findAndHookMethod(
+                "ba.m",
+                cl,
+                "a",
+                android.content.ContextWrapper::class.java,
+                accountInfoClass,
+                eClass,
+                fClass,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val accountInfo = param.args[1] ?: return
+                        val openid = XposedHelpers.callMethod(accountInfo, "getOpenid") as? String ?: ""
+                        val username = XposedHelpers.callMethod(accountInfo, "getUsername") as? String ?: ""
+                        val phonenum = XposedHelpers.callMethod(accountInfo, "getPhonenum") as? String ?: ""
+                        val vivotoken = XposedHelpers.callMethod(accountInfo, "getVivotoken") as? String ?: ""
+                        val map = LinkedHashMap<String, Any>()
+                        map["openid"] = openid
+                        map["nickname"] = username
+                        map["mobile"] = phonenum
+                        map["vivotoken"] = vivotoken
+                        HookInterceptors.onCapturePlainMap(map, TokenTrigger.cachedContext?.get())
+                        XposedBridge.log("$TAG: ✓ 精准请求入口 ba.m.a 成功截取 AccountInfo: openid=$openid")
+                    }
+                }
+            )
+            XposedBridge.log("$TAG: ✓ 精准请求入口 1 (ba.m.a) 挂钩就绪")
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG: 挂钩 ba.m.a 异常: ${t.message}")
         }
 
         // B. 精准拦截点 1: pb.a.a(Map, boolean)

@@ -29,8 +29,8 @@ class MainViewModel : ViewModel() {
         repository.setBypassSignatureEnabled(enabled)
     }
 
-    private val _isModuleActive = MutableStateFlow(false)
-    val isModuleActive: StateFlow<Boolean> = _isModuleActive.asStateFlow()
+    val isModuleActive: StateFlow<Boolean> = repository.isModuleActive
+    val targetPid: StateFlow<Int> = repository.targetPid
 
     private val _isTargetInstalled = MutableStateFlow(false)
     val isTargetInstalled: StateFlow<Boolean> = _isTargetInstalled.asStateFlow()
@@ -48,14 +48,18 @@ class MainViewModel : ViewModel() {
     private var timeoutJob: Job? = null
 
     init {
-        setModuleActive(isModuleActiveNative())
+        if (isModuleActiveNative()) {
+            setModuleActive(true)
+        }
     }
 
     /**
-     * 模块自检测（Hook 框架生效时会被替换返回 true）
+     * 模块自检测设置（仅在确认激活时更新，防止被假信号覆盖）
      */
     fun setModuleActive(active: Boolean) {
-        _isModuleActive.value = active
+        if (active) {
+            repository.setModuleActive(true)
+        }
     }
 
     fun isModuleActiveNative(): Boolean {
@@ -66,7 +70,7 @@ class MainViewModel : ViewModel() {
      * 收到宿主进程回传的心跳 PONG
      */
     fun onPongReceived(pid: Int) {
-        _isModuleActive.value = true
+        repository.updateHeartbeat(pid)
         _isTargetRunning.value = true
         _statusMessage.value = "✓ 模块已在宿主中就绪 (PID: $pid)"
         Log.i(TAG, "收到宿主回传 PONG 心跳，已标记宿主存活且模块激活 (PID: $pid)")
@@ -82,6 +86,13 @@ class MainViewModel : ViewModel() {
             _isTargetInstalled.value = true
         } catch (e: Exception) {
             _isTargetInstalled.value = false
+        }
+
+        // 检查最近是否有心跳（60秒内收到过PONG，标记目标运行中）
+        val lastHb = repository.lastHeartbeat.value
+        val pid = repository.targetPid.value
+        if (pid > 0 && System.currentTimeMillis() - lastHb < 60000L) {
+            _isTargetRunning.value = true
         }
 
         // 发送 PING 广播主动探测宿主进程与 Hook 激活状态（完美绕过 Android 14 getRunningAppProcesses 跨进程权限盲区）
