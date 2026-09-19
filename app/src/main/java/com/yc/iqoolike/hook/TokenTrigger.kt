@@ -3,6 +3,7 @@ package com.yc.iqoolike.hook
 import android.app.Activity
 import android.content.Context
 import android.util.Log
+import com.yc.iqoolike.data.AppLogger
 import com.yc.iqoolike.data.TokenModel
 import java.lang.ref.WeakReference
 import java.lang.reflect.Modifier
@@ -42,6 +43,7 @@ object TokenTrigger {
      * 直接从宿主 SpUserSettings 提取已存 Token
      */
     fun extractCachedSnapshot(classLoader: ClassLoader, context: Context?): TokenModel? {
+        val safeCtx = context ?: cachedContext?.get() ?: cachedActivity?.get()
         return try {
             val spCClass = Class.forName("com.leaf.data_safe_save.sp.c", false, classLoader)
             val hMethod = spCClass.getDeclaredMethod("h")
@@ -77,7 +79,7 @@ object TokenTrigger {
                 }
             }
 
-            TokenModel(
+            val tokenModel = TokenModel(
                 accessToken = accessToken,
                 userId = userId,
                 expiresIn = expiresIn,
@@ -90,8 +92,10 @@ object TokenTrigger {
                 timestamp = System.currentTimeMillis() / 1000,
                 source = "宿主本地缓存"
             )
+            AppLogger.i(safeCtx, TAG, "✓ 成功从宿主本地缓存读取 Token: userId=$userId, token=${accessToken.take(8)}...")
+            tokenModel
         } catch (t: Throwable) {
-            Log.d(TAG, "读取宿主内部已存 Token 异常: ${t.message}")
+            AppLogger.w(safeCtx, TAG, "读取宿主内部已存 Token 异常: ${t.message}")
             null
         }
     }
@@ -100,14 +104,14 @@ object TokenTrigger {
      * 主动触发换票 (纯静默双通道)
      */
     fun trigger(classLoader: ClassLoader, context: Context? = null): Boolean {
+        val safeCtx = context ?: cachedContext?.get() ?: cachedActivity?.get()
         try {
-            Log.d(TAG, "开始执行主动静默换票流程...")
+            AppLogger.i(safeCtx, TAG, "开始执行主动静默换票流程...")
 
             // 1. 如果宿主本地已有有效 Token 快照，立即秒级回传
-            val safeCtx = context ?: cachedContext?.get() ?: cachedActivity?.get()
             val cachedToken = extractCachedSnapshot(classLoader, safeCtx)
             if (cachedToken != null && safeCtx != null) {
-                Log.i(TAG, "✓ 发现宿主本地已存有效 Token，立即秒级回传！")
+                AppLogger.i(safeCtx, TAG, "✓ 发现宿主本地已存有效 Token，立即秒级回传伴侣！")
                 HookInterceptors.sendResultBroadcast(safeCtx, cachedToken)
             }
 
@@ -121,7 +125,7 @@ object TokenTrigger {
                 methodC.isAccessible = true
                 val target = if (Modifier.isStatic(methodC.modifiers)) null else instance
                 methodC.invoke(target)
-                Log.i(TAG, "✓ 成功调用 ba.m.c() 触发静默换票")
+                AppLogger.i(safeCtx, TAG, "✓ 成功调用 ba.m.c() 触发静默检测/换票")
                 return true
             }
 
@@ -131,14 +135,14 @@ object TokenTrigger {
                 methodB.isAccessible = true
                 val target = if (Modifier.isStatic(methodB.modifiers)) null else instance
                 methodB.invoke(target, null)
-                Log.i(TAG, "✓ 成功调用 ba.m.b(null) 触发自动登录换票")
+                AppLogger.i(safeCtx, TAG, "✓ 成功调用 ba.m.b(null) 触发自动登录换票")
                 return true
             }
 
-            Log.w(TAG, "未找到适用的静默换票入口")
+            AppLogger.w(safeCtx, TAG, "未找到适用的静默换票入口")
             return false
         } catch (t: Throwable) {
-            Log.e(TAG, "主动静默换票异常", t)
+            AppLogger.e(safeCtx, TAG, "主动静默换票异常", t)
             return false
         }
     }

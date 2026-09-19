@@ -7,6 +7,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yc.iqoolike.IQOOApplication
+import com.yc.iqoolike.data.AppLogger
+import com.yc.iqoolike.data.LogEntry
 import com.yc.iqoolike.data.SecurityUtil
 import com.yc.iqoolike.data.TokenModel
 import com.yc.iqoolike.data.TokenRepository
@@ -23,10 +25,15 @@ class MainViewModel : ViewModel() {
 
     val latestToken: StateFlow<TokenModel?> = repository.latestToken
     val historyList: StateFlow<List<TokenModel>> = repository.historyList
+    val logs: StateFlow<List<LogEntry>> = repository.logs
     val isBypassSignatureEnabled: StateFlow<Boolean> = repository.isBypassSignatureEnabled
 
     fun setBypassSignatureEnabled(enabled: Boolean) {
         repository.setBypassSignatureEnabled(enabled)
+    }
+
+    fun clearLogs() {
+        repository.clearLogs()
     }
 
     val isModuleActive: StateFlow<Boolean> = repository.isModuleActive

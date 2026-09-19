@@ -51,6 +51,21 @@ class CompanionStatusReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            Constants.ACTION_LOG -> {
+                val level = intent.getStringExtra("level") ?: "INFO"
+                val tag = intent.getStringExtra("tag") ?: "IQOO"
+                val message = intent.getStringExtra("message") ?: ""
+                val time = intent.getLongExtra("time", System.currentTimeMillis())
+                if (message.isNotEmpty()) {
+                    val entry = com.yc.iqoolike.data.LogEntry(
+                        timestamp = time,
+                        level = level,
+                        tag = tag,
+                        message = message
+                    )
+                    repository.addLog(entry)
+                }
+            }
         }
     }
 

@@ -180,6 +180,96 @@ object SignatureBypassHook {
             XposedBridge.log("$TAG: ⚠️ [8/8] Hook isLogin 伪装失败: ${t.message}")
         }
 
+        // 防御 9: 保护本地有效 Token，拦截 ba.m.h 因 openid 空导致调用 ba.m.d 清空凭据
+        try {
+            XposedHelpers.findAndHookMethod(
+                "ba.m",
+                classLoader,
+                "h",
+                object : XC_MethodReplacement() {
+                    override fun replaceHookedMethod(param: MethodHookParam): Any {
+                        val ctx = TokenTrigger.cachedContext?.get()
+                        val spCClass = XposedHelpers.findClass("com.leaf.data_safe_save.sp.c", classLoader)
+                        val spUserSettings = XposedHelpers.callStaticMethod(spCClass, "h")
+                        if (spUserSettings != null) {
+                            val tokenInfo = XposedHelpers.callMethod(spUserSettings, "m")
+                            if (tokenInfo != null) {
+                                val token = XposedHelpers.callMethod(tokenInfo, "getAccessToken") as? String
+                                if (!token.isNullOrEmpty()) {
+                                    com.yc.iqoolike.data.AppLogger.i(ctx, TAG, "✓ [9/11] ba.m.h: 命中本地有效 Token，确认在线状态并阻止非法登出清空")
+                                    return true
+                                }
+                            }
+                        }
+                        return false
+                    }
+                }
+            )
+            com.yc.iqoolike.data.AppLogger.i(null, TAG, "✓ [9/11] ba.m.h 保护挂钩就绪")
+        } catch (t: Throwable) {
+            com.yc.iqoolike.data.AppLogger.w(null, TAG, "⚠️ [9/11] Hook ba.m.h 失败: ${t.message}")
+        }
+
+        // 防御 10: 阻止异常触发的强制注销 (ba.m.d)，防止 Token 被误清空
+        try {
+            XposedHelpers.findAndHookMethod(
+                "ba.m",
+                classLoader,
+                "d",
+                object : de.robv.android.xposed.XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val ctx = TokenTrigger.cachedContext?.get()
+                        com.yc.iqoolike.data.AppLogger.w(ctx, TAG, "⚠️ [10/11] 拦截到 ba.m.d 退出登录请求，保护本地 Token 不被清除")
+                        param.result = null
+                    }
+                }
+            )
+            com.yc.iqoolike.data.AppLogger.i(null, TAG, "✓ [10/11] ba.m.d 防注销挂钩就绪")
+        } catch (t: Throwable) {
+            com.yc.iqoolike.data.AppLogger.w(null, TAG, "⚠️ [10/11] Hook ba.m.d 失败: ${t.message}")
+        }
+
+        // 防御 11: 拦截 ba.r.g，防止因系统账号未授权返回 null 导致“帐号信息获取失败”
+        try {
+            val aClass = XposedHelpers.findClass("ba.a", classLoader)
+            XposedHelpers.findAndHookMethod(
+                "ba.r",
+                classLoader,
+                "g",
+                aClass,
+                object : de.robv.android.xposed.XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        val ctx = TokenTrigger.cachedContext?.get()
+                        val aVar = param.args[0] ?: return
+                        try {
+                            val bbkMgrClass = XposedHelpers.findClass("com.bbk.account.base.BBKAccountManager", classLoader)
+                            val bbkMgr = XposedHelpers.callStaticMethod(bbkMgrClass, "getInstance")
+                            val openid = XposedHelpers.callMethod(bbkMgr, "getOpenid") as? String ?: ""
+                            val userName = XposedHelpers.callMethod(bbkMgr, "getUserName") as? String ?: ""
+
+                            com.yc.iqoolike.data.AppLogger.i(ctx, TAG, "[11/11] ba.r.g 触发: openid=${openid.take(6)}, userName=$userName")
+
+                            if (openid.isEmpty() || userName.isEmpty()) {
+                                com.yc.iqoolike.data.AppLogger.w(ctx, TAG, "系统账号为空，优先从本地缓存提取有效 Token...")
+                                val cachedToken = TokenTrigger.extractCachedSnapshot(classLoader, ctx)
+                                if (cachedToken != null && ctx != null) {
+                                    com.yc.iqoolike.data.AppLogger.i(ctx, TAG, "✓ 从本地缓存提取到有效 Token，秒级回传伴侣并阻断错误 Toast")
+                                    HookInterceptors.sendResultBroadcast(ctx, cachedToken)
+                                    param.result = null
+                                    return
+                                }
+                            }
+                        } catch (e: Throwable) {
+                            com.yc.iqoolike.data.AppLogger.e(ctx, TAG, "ba.r.g 拦截处理异常", e)
+                        }
+                    }
+                }
+            )
+            com.yc.iqoolike.data.AppLogger.i(null, TAG, "✓ [11/11] ba.r.g 防报失败挂钩就绪")
+        } catch (t: Throwable) {
+            com.yc.iqoolike.data.AppLogger.w(null, TAG, "⚠️ [11/11] Hook ba.r.g 失败: ${t.message}")
+        }
+
         XposedBridge.log("$TAG: === [第 1 顺位] 系统签名校验、防崩与防跳转全部挂钩就绪 ===")
     }
 

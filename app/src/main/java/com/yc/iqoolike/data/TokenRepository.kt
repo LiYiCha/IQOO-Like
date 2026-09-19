@@ -44,8 +44,25 @@ class TokenRepository(private val context: Context) {
     )
     val lastHeartbeat: StateFlow<Long> = _lastHeartbeat.asStateFlow()
 
+    private val _logs = MutableStateFlow<List<LogEntry>>(emptyList())
+    val logs: StateFlow<List<LogEntry>> = _logs.asStateFlow()
+
     init {
         loadFromCache()
+        AppLogger.registerInAppCallback { addLog(it) }
+    }
+
+    fun addLog(entry: LogEntry) {
+        val current = _logs.value.toMutableList()
+        current.add(entry)
+        if (current.size > MAX_LOGS) {
+            current.removeAt(0)
+        }
+        _logs.value = current
+    }
+
+    fun clearLogs() {
+        _logs.value = emptyList()
     }
 
     /**
@@ -181,6 +198,7 @@ class TokenRepository(private val context: Context) {
         private const val KEY_HISTORY_LIST = "key_history_list"
         const val FILE_SNAPSHOT_NAME = "iqoo_token.json"
         private const val MAX_HISTORY = 50
+        private const val MAX_LOGS = 300
 
         @Volatile
         private var INSTANCE: TokenRepository? = null

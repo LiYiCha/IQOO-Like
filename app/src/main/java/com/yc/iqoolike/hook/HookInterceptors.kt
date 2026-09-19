@@ -109,9 +109,11 @@ object HookInterceptors {
                 }
             } else {
                 Log.w(TAG, "换票响应失败，状态码非0: $code")
+                com.yc.iqoolike.data.AppLogger.w(context, TAG, "换票响应失败，服务端状态码非0: $code")
             }
         } catch (t: Throwable) {
             Log.e(TAG, "处理 Token 响应异常", t)
+            com.yc.iqoolike.data.AppLogger.e(context, TAG, "处理 Token 响应异常", t)
         }
     }
 
@@ -143,8 +145,10 @@ object HookInterceptors {
             val internalFile = File(context.filesDir, TokenRepository.FILE_SNAPSHOT_NAME)
             internalFile.writeText(json)
             Log.i(TAG, "✓ 内部快照已写入: ${internalFile.absolutePath}")
+            com.yc.iqoolike.data.AppLogger.i(context, TAG, "✓ 内部快照已写入: ${internalFile.absolutePath}")
         } catch (e: Throwable) {
             Log.e(TAG, "写入内部快照失败", e)
+            com.yc.iqoolike.data.AppLogger.e(context, TAG, "写入内部快照失败", e)
         }
 
         // 外部沙盒: /sdcard/Android/data/com.iqoo.bbs/files/iqoo_token.json (免Root文件管理器可读)
@@ -178,8 +182,10 @@ object HookInterceptors {
             }
             context.sendBroadcast(intent)
             Log.i(TAG, "✓ 已向 $MODULE_PKG 发送结果广播")
+            com.yc.iqoolike.data.AppLogger.i(context, TAG, "✓ 成功回传 Token 凭据广播给伴侣 (userId=${token.userId}, 来源=${token.source})")
         } catch (e: Throwable) {
             Log.e(TAG, "发送结果广播失败", e)
+            com.yc.iqoolike.data.AppLogger.e(context, TAG, "发送结果广播失败", e)
         }
     }
 }

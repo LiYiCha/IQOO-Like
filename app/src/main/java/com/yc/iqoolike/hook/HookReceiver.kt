@@ -22,11 +22,13 @@ class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
         when (action) {
             Constants.ACTION_PING -> {
                 Log.i(TAG, "宿主收到伴侣 App 心跳探测 PING，回复 PONG")
+                com.yc.iqoolike.data.AppLogger.i(context, TAG, "收到伴侣心跳探测 PING，回复 PONG (PID: ${android.os.Process.myPid()})")
                 sendPongBroadcast(context)
             }
             Constants.ACTION_PULL -> {
                 val nonce = intent.getStringExtra("nonce") ?: ""
                 Log.i(TAG, "收到模块主动拉取触发请求, nonce=$nonce")
+                com.yc.iqoolike.data.AppLogger.i(context, TAG, "收到主动拉取触发请求 (nonce=$nonce)，启动凭证提取通道")
 
                 // 1. 尝试从内部快照文件回传
                 try {
@@ -35,6 +37,7 @@ class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
                         val cachedJson = snapshotFile.readText()
                         val token = TokenModel.fromJson(cachedJson)
                         if (token != null) {
+                            com.yc.iqoolike.data.AppLogger.i(context, TAG, "✓ 发现宿主内部快照文件，立即回传凭据 (userId=${token.userId})")
                             HookInterceptors.sendResultBroadcast(context, token.copy(source = "宿主快照"), nonce)
                         }
                     }
@@ -62,8 +65,10 @@ class HookReceiver(private val classLoader: ClassLoader) : BroadcastReceiver() {
                 }
                 context.sendBroadcast(pongIntent)
                 Log.i(TAG, "✓ 已向伴侣 App 回传心跳 PONG (PID: ${android.os.Process.myPid()})")
+                com.yc.iqoolike.data.AppLogger.i(context, TAG, "✓ 已向伴侣 App 上报心跳 PONG (PID: ${android.os.Process.myPid()})")
             } catch (t: Throwable) {
                 Log.e(TAG, "发送 PONG 广播异常", t)
+                com.yc.iqoolike.data.AppLogger.e(context, TAG, "发送 PONG 广播异常", t)
             }
         }
     }

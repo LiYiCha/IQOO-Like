@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.yc.iqoolike.data.AppLogger
 import com.yc.iqoolike.data.Constants
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
@@ -48,6 +49,7 @@ class ClassicHookEntry : IXposedHookLoadPackage {
         if (packageName != Constants.TARGET_APP_PKG) return
 
         XposedBridge.log("$TAG: 命中 iQOO 社区进程: ${lpparam.processName}")
+        AppLogger.i(null, TAG, "命中 iQOO 社区进程: ${lpparam.processName}")
         val cl = lpparam.classLoader
 
         // ★★★ 第 1 顺位：首先执行系统签名校验绕过与防崩挂钩（在 ContentProvider 与 Application 启动前生效）★★★
@@ -66,11 +68,13 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                         registerReceiverIfNeeded(app, cl)
                         HookReceiver.sendPongBroadcast(app.applicationContext)
                         XposedBridge.log("$TAG: ✓ Application.onCreate 启动就绪，已发送激活存活心跳")
+                        AppLogger.i(app.applicationContext, TAG, "✓ Application.onCreate 启动就绪，已上报存活心跳")
                     }
                 }
             )
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: Hook Application.onCreate 失败: ${t.message}")
+            AppLogger.w(null, TAG, "Hook Application.onCreate 失败: ${t.message}")
         }
 
         // A. 拦截 Activity.onCreate 缓存 Context 并注册广播
@@ -121,12 +125,15 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                         map["vivotoken"] = vivotoken
                         HookInterceptors.onCapturePlainMap(map, TokenTrigger.cachedContext?.get())
                         XposedBridge.log("$TAG: ✓ 精准请求入口 ba.m.a 成功截取 AccountInfo: openid=$openid")
+                        AppLogger.i(TokenTrigger.cachedContext?.get(), TAG, "✓ 精准请求入口 ba.m.a 截取到账号凭证: openid=$openid, username=$username")
                     }
                 }
             )
             XposedBridge.log("$TAG: ✓ 精准请求入口 1 (ba.m.a) 挂钩就绪")
+            AppLogger.i(null, TAG, "✓ 精准请求入口 1 (ba.m.a) 挂钩就绪")
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: 挂钩 ba.m.a 异常: ${t.message}")
+            AppLogger.w(null, TAG, "挂钩 ba.m.a 异常: ${t.message}")
         }
 
         // B. 精准拦截点 1: pb.a.a(Map, boolean)
@@ -143,13 +150,16 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                         if (arg0.containsKey("vivotoken")) {
                             val copyMap = LinkedHashMap<Any?, Any?>(arg0)
                             HookInterceptors.onCapturePlainMap(copyMap, TokenTrigger.cachedContext?.get())
+                            AppLogger.i(TokenTrigger.cachedContext?.get(), TAG, "✓ pb.a.a 捕获到明文换票请求参数 (含 vivotoken)")
                         }
                     }
                 }
             )
             XposedBridge.log("$TAG: ✓ 精准拦截点 1 (pb.a.a) 挂钩就绪")
+            AppLogger.i(null, TAG, "✓ 精准拦截点 1 (pb.a.a) 挂钩就绪")
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: 精准拦截点 1 (pb.a.a) 挂钩失败: ${t.message}")
+            AppLogger.w(null, TAG, "精准拦截点 1 (pb.a.a) 挂钩失败: ${t.message}")
         }
 
         // C. 精准拦截点 2: ba.n.m(yb.d)
@@ -165,6 +175,7 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                         val wrapper = param.args[0] ?: return
                         val context = TokenTrigger.cachedContext?.get()
                         HookInterceptors.onCaptureTokenResponse(wrapper, cl, context)
+                        AppLogger.i(context, TAG, "✓ ba.n.m 捕获到网络响应 Token 结构体，正在解析回传...")
 
                         // 宿主界面 Toast 直观反馈
                         if (context != null) {
@@ -180,8 +191,10 @@ class ClassicHookEntry : IXposedHookLoadPackage {
                 }
             )
             XposedBridge.log("$TAG: ✓ 精准拦截点 2 (ba.n.m(yb.d)) 挂钩就绪")
+            AppLogger.i(null, TAG, "✓ 精准拦截点 2 (ba.n.m) 挂钩就绪")
         } catch (t: Throwable) {
             XposedBridge.log("$TAG: 精准拦截点 2 (ba.n.m) 挂钩失败: ${t.message}")
+            AppLogger.w(null, TAG, "精准拦截点 2 (ba.n.m) 挂钩失败: ${t.message}")
         }
     }
 

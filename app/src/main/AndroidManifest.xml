@@ -53,6 +53,7 @@
             <intent-filter>
                 <action android:name="iqoobbs.action.PONG" />
                 <action android:name="iqoobbs.action.RESULT" />
+                <action android:name="iqoobbs.action.LOG" />
             </intent-filter>
         </receiver>
 

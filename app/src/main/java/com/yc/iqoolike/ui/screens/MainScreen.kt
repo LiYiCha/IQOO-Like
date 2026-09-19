@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,6 +18,7 @@ import com.yc.iqoolike.ui.viewmodel.MainViewModel
 enum class NavigationTab(val title: String) {
     FETCH("获取"),
     HISTORY("历史"),
+    LOGS("日志"),
     SETTINGS("设置")
 }
 
@@ -42,6 +45,12 @@ fun MainScreen(viewModel: MainViewModel) {
                     label = { Text("历史") }
                 )
                 NavigationBarItem(
+                    selected = currentTab == NavigationTab.LOGS,
+                    onClick = { currentTab = NavigationTab.LOGS },
+                    icon = { Icon(Icons.Default.Terminal, contentDescription = "日志") },
+                    label = { Text("日志") }
+                )
+                NavigationBarItem(
                     selected = currentTab == NavigationTab.SETTINGS,
                     onClick = { currentTab = NavigationTab.SETTINGS },
                     icon = { Icon(Icons.Default.Settings, contentDescription = "设置") },
@@ -59,6 +68,7 @@ fun MainScreen(viewModel: MainViewModel) {
             when (currentTab) {
                 NavigationTab.FETCH -> TokenFetchScreen(viewModel = viewModel)
                 NavigationTab.HISTORY -> HistoryScreen(viewModel = viewModel)
+                NavigationTab.LOGS -> LogsScreen(viewModel = viewModel)
                 NavigationTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
             }
         }
